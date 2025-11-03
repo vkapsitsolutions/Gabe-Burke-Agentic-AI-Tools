@@ -1,0 +1,18 @@
+[project]
+name = "gabe-burke-agentic-ai-tools"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain>=1.0.3",
+    "langchain-openai>=1.0.1",
+    "matplotlib>=3.10.7",
+    "openai>=2.6.1",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "python-dotenv>=1.2.1",
+    "scipy>=1.15.3",
+    "seaborn>=0.13.2",
+    "streamlit>=1.51.0",
+]
