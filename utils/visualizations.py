@@ -5,10 +5,164 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 from scipy import stats
+import io
+import base64
 
 # Set style
 sns.set_style("whitegrid")
 plt.rcParams['figure.facecolor'] = 'white'
+
+
+def create_capacity_utilization_chart(df, date_column, attendees_col, capacity_col, title_prefix=""):
+    """
+    Create capacity utilization percentage chart with DAILY intervals on X-axis.
+    Y-axis shows occupied percentage = (attendees / capacity) * 100.
+    Optimized for clear visual analysis.
+    """
+    # Create figure with larger size for clarity
+    fig, ax = plt.subplots(figsize=(16, 8))
+    
+    # Ensure date column is datetime
+    if df[date_column].dtype != 'datetime64[ns]':
+        df[date_column] = pd.to_datetime(df[date_column])
+    
+    # Sort by date and reset index
+    df_sorted = df.sort_values(date_column).copy().reset_index(drop=True)
+    
+    # Calculate occupied percentage (utilization)
+    df_sorted['Occupied_Percentage'] = (df_sorted[attendees_col] / df_sorted[capacity_col] * 100).fillna(0)
+    
+    # Ensure we have daily intervals (resample if needed)
+    df_sorted = df_sorted.set_index(date_column)
+    
+    # Resample to daily frequency (forward fill for missing days)
+    df_daily = df_sorted[['Occupied_Percentage', attendees_col, capacity_col]].resample('D').mean()
+    df_daily = df_daily.fillna(method='ffill')  # Forward fill missing days
+    
+    # Reset index to get dates back as column
+    df_daily = df_daily.reset_index()
+    
+    # Create the main line plot with larger markers
+    ax.plot(df_daily[date_column], df_daily['Occupied_Percentage'], 
+            marker='o', linewidth=3, markersize=7, 
+            label='Occupied %', color='#1f77b4', alpha=0.9,
+            markerfacecolor='#1f77b4', markeredgecolor='white', markeredgewidth=1.5)
+    
+    # Add reference lines with labels
+    ax.axhline(y=100, color='#d62728', linestyle='--', linewidth=2.5, 
+               label='100% (Full Capacity)', alpha=0.8, zorder=1)
+    ax.axhline(y=80, color='#ff7f0e', linestyle='--', linewidth=2, 
+               label='80% (Optimal Target)', alpha=0.7, zorder=1)
+    ax.axhline(y=50, color='#bcbd22', linestyle='--', linewidth=2, 
+               label='50% (Low Threshold)', alpha=0.7, zorder=1)
+    
+    # Add colored zones with transparency
+    ax.fill_between(df_daily[date_column], 0, 50, alpha=0.15, color='#d62728', 
+                     label='Critical Zone (<50%)', zorder=0)
+    ax.fill_between(df_daily[date_column], 50, 80, alpha=0.15, color='#ff7f0e', 
+                     label='Moderate Zone (50-80%)', zorder=0)
+    ax.fill_between(df_daily[date_column], 80, 100, alpha=0.15, color='#2ca02c', 
+                     label='Optimal Zone (80-100%)', zorder=0)
+    
+    # Highlight over-capacity periods
+    over_capacity = df_daily['Occupied_Percentage'] > 100
+    if over_capacity.any():
+        ax.fill_between(df_daily[date_column], 100, df_daily['Occupied_Percentage'], 
+                        where=over_capacity, alpha=0.25, color='#d62728', 
+                        label='Over Capacity (>100%)', zorder=0)
+    
+    # Add trend line
+    if len(df_daily) > 1:
+        x_numeric = np.arange(len(df_daily))
+        z = np.polyfit(x_numeric, df_daily['Occupied_Percentage'], 1)
+        p = np.poly1d(z)
+        trend_line = p(x_numeric)
+        ax.plot(df_daily[date_column], trend_line, 
+               linestyle=':', linewidth=2.5, alpha=0.7, color='#9467bd', 
+               label='Trend Line', zorder=2)
+    
+    # Add data labels on key points (max, min, first, last)
+    max_idx = df_daily['Occupied_Percentage'].idxmax()
+    min_idx = df_daily['Occupied_Percentage'].idxmin()
+    
+    # Annotate maximum
+    max_val = df_daily.loc[max_idx, 'Occupied_Percentage']
+    max_date = df_daily.loc[max_idx, date_column]
+    ax.annotate(f'Peak: {max_val:.1f}%', 
+               xy=(max_date, max_val),
+               xytext=(10, 20), textcoords='offset points',
+               ha='left', fontsize=11, fontweight='bold',
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
+               arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', color='red', lw=2))
+    
+    # Annotate minimum
+    min_val = df_daily.loc[min_idx, 'Occupied_Percentage']
+    min_date = df_daily.loc[min_idx, date_column]
+    ax.annotate(f'Low: {min_val:.1f}%', 
+               xy=(min_date, min_val),
+               xytext=(10, -20), textcoords='offset points',
+               ha='left', fontsize=11, fontweight='bold',
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.7),
+               arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', color='blue', lw=2))
+    
+    # Formatting for clarity
+    ax.set_title(f'{title_prefix}Daily Capacity Occupied Percentage', 
+                fontsize=18, fontweight='bold', pad=25)
+    ax.set_xlabel('Date (Daily Intervals)', fontsize=14, fontweight='bold', labelpad=10)
+    ax.set_ylabel('Occupied Percentage (%)', fontsize=14, fontweight='bold', labelpad=10)
+    
+    # Legend with better positioning
+    ax.legend(fontsize=10, loc='upper left', framealpha=0.95, 
+             shadow=True, fancybox=True, ncol=2, bbox_to_anchor=(0, 1))
+    
+    # Grid for better readability
+    ax.grid(True, alpha=0.4, linestyle='--', linewidth=0.8)
+    ax.set_axisbelow(True)
+    
+    # Set Y-axis limits with some padding
+    y_max = max(df_daily['Occupied_Percentage'].max() + 10, 110)
+    ax.set_ylim(0, y_max)
+    
+    # Format X-axis for daily intervals
+    ax.xaxis.set_major_locator(plt.matplotlib.dates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    
+    # Rotate and align x-axis labels for readability
+    plt.xticks(rotation=45, ha='right', fontsize=10)
+    
+    # Add horizontal lines at each major y-tick for better readability
+    ax.yaxis.set_major_locator(plt.MultipleLocator(10))
+    
+    # Background color for better contrast
+    ax.set_facecolor('#fafafa')
+    fig.patch.set_facecolor('white')
+    
+    # Add minor gridlines
+    ax.yaxis.set_minor_locator(plt.MultipleLocator(5))
+    ax.grid(which='minor', alpha=0.2, linestyle=':', linewidth=0.5)
+    
+    # Tight layout to prevent label cutoff
+    plt.tight_layout()
+    
+    # Add statistics box
+    avg_occupied = df_daily['Occupied_Percentage'].mean()
+    stats_text = f'Average: {avg_occupied:.1f}%\nDays: {len(df_daily)}'
+    ax.text(0.98, 0.02, stats_text, transform=ax.transAxes,
+           fontsize=11, verticalalignment='bottom', horizontalalignment='right',
+           bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='gray'))
+    
+    return fig, df_daily['Occupied_Percentage']
+
+
+
+
+def fig_to_download_link(fig, filename="chart.png"):
+    """Convert matplotlib figure to downloadable bytes."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+    buf.seek(0)
+    return buf.getvalue()
+
 
 def create_distribution_plot(data, column_name, title_prefix=""):
     """Create enhanced distribution plot."""

@@ -195,3 +195,121 @@ def generate_comparison_suggestions(df, group_column, metric_column):
         suggestions.append("💡 Action: Share best practices from top performers with struggling locations")
     
     return suggestions
+
+
+def generate_utilization_percentage_insights(utilization_series):
+    """Generate detailed insights for daily capacity utilization percentage."""
+    insights = []
+    suggestions = []
+    
+    # Calculate statistics
+    avg_util = utilization_series.mean()
+    max_util = utilization_series.max()
+    min_util = utilization_series.min()
+    std_util = utilization_series.std()
+    median_util = utilization_series.median()
+    
+    # Calculate trend
+    if len(utilization_series) > 1:
+        x = np.arange(len(utilization_series))
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x, utilization_series)
+        trend_direction = "increasing" if slope > 0 else "decreasing" if slope < 0 else "stable"
+        daily_change = slope
+    else:
+        trend_direction = "unknown"
+        daily_change = 0
+        r_value = 0
+    
+    # === KEY METRICS ===
+    insights.append(f"📊 **Average Daily Occupied:** {avg_util:.1f}%")
+    insights.append(f"📈 **Median Occupied:** {median_util:.1f}%")
+    insights.append(f"⬆️ **Peak Day:** {max_util:.1f}%")
+    insights.append(f"⬇️ **Lowest Day:** {min_util:.1f}%")
+    insights.append(f"📉 **Daily Variability:** ±{std_util:.1f}%")
+    
+    # === TREND ANALYSIS ===
+    if abs(daily_change) > 0.1:
+        insights.append(f"📈 **Daily Trend:** {trend_direction.capitalize()} by {abs(daily_change):.2f}% per day")
+        trend_strength = "Strong" if abs(r_value) > 0.7 else "Moderate" if abs(r_value) > 0.4 else "Weak"
+        insights.append(f"💪 **Trend Strength:** {trend_strength} (R²={r_value**2:.2f})")
+    else:
+        insights.append(f"➡️ **Daily Trend:** Stable (±{abs(daily_change):.2f}% per day)")
+    
+    # === ZONE ANALYSIS ===
+    critical_days = len(utilization_series[utilization_series < 50])
+    moderate_days = len(utilization_series[(utilization_series >= 50) & (utilization_series < 80)])
+    optimal_days = len(utilization_series[(utilization_series >= 80) & (utilization_series <= 100)])
+    over_days = len(utilization_series[utilization_series > 100])
+    total_days = len(utilization_series)
+    
+    insights.append(f"🔴 **Critical Days (<50%):** {critical_days} ({critical_days/total_days*100:.1f}%)")
+    insights.append(f"🟡 **Moderate Days (50-80%):** {moderate_days} ({moderate_days/total_days*100:.1f}%)")
+    insights.append(f"🟢 **Optimal Days (80-100%):** {optimal_days} ({optimal_days/total_days*100:.1f}%)")
+    if over_days > 0:
+        insights.append(f"🚨 **Over-Capacity Days (>100%):** {over_days} ({over_days/total_days*100:.1f}%)")
+    
+    # === ACTIONABLE SUGGESTIONS ===
+    
+    # Overall utilization level
+    if avg_util < 40:
+        suggestions.append("🔴 **CRITICAL: Very Low Utilization** - Immediate action required")
+        suggestions.append("💡 **Reduce capacity** by at least 30% or launch aggressive marketing campaign")
+        suggestions.append("📊 **Analyze:** Review pricing strategy, service quality, and competitor activity")
+    elif avg_util < 60:
+        suggestions.append("⚠️ **Low Utilization** - Below sustainable levels")
+        suggestions.append("💡 **Increase marketing efforts** and consider promotional pricing")
+        suggestions.append("📊 **Review:** Operating hours, location accessibility, and customer feedback")
+    elif avg_util > 95:
+        suggestions.append("🚨 **CRITICAL: Consistent Over-Capacity** - Service quality at risk")
+        suggestions.append("💡 **Urgent:** Expand capacity or implement strict booking limits")
+        suggestions.append("📊 **Consider:** Multiple sessions, larger venue, or waitlist system")
+    elif avg_util > 85:
+        suggestions.append("⚠️ **High Utilization** - Operating near maximum capacity")
+        suggestions.append("💡 **Plan for expansion** within next 3-6 months")
+        suggestions.append("📊 **Monitor:** Customer complaints and service quality metrics")
+    else:
+        suggestions.append("✅ **Healthy Utilization Range** - Good balance achieved")
+        suggestions.append("💡 **Maintain** current operations and continue monitoring trends")
+    
+    # Trend-based suggestions
+    if trend_direction == "increasing":
+        if daily_change > 0.5:
+            suggestions.append("📈 **Strong Growth Trend** - Demand increasing rapidly")
+            suggestions.append("💡 **Prepare for capacity expansion** - growth will continue")
+        elif daily_change > 0.2:
+            suggestions.append("📈 **Steady Growth** - Positive demand trend")
+            suggestions.append("💡 **Monitor closely** and plan capacity adjustments")
+    elif trend_direction == "decreasing":
+        if daily_change < -0.5:
+            suggestions.append("📉 **Concerning Decline** - Losing customers rapidly")
+            suggestions.append("💡 **Urgent investigation needed** - identify root causes immediately")
+        elif daily_change < -0.2:
+            suggestions.append("📉 **Gradual Decline** - Demand trending downward")
+            suggestions.append("💡 **Review retention strategies** and gather customer feedback")
+    
+    # Variability suggestions
+    if std_util > 30:
+        suggestions.append("📊 **Very High Variability** - Unpredictable occupancy patterns")
+        suggestions.append("💡 **Implement dynamic pricing** and flexible scheduling")
+        suggestions.append("📅 **Analyze:** Day-of-week and seasonal patterns for optimization")
+    elif std_util > 20:
+        suggestions.append("📊 **Moderate Variability** - Some inconsistency in occupancy")
+        suggestions.append("💡 **Smooth demand** through promotions on low-occupancy days")
+    
+    # Over-capacity warnings
+    if over_days > 0:
+        over_pct = (over_days / total_days) * 100
+        if over_pct > 20:
+            suggestions.append(f"🚨 **URGENT: Over-capacity {over_pct:.0f}% of days** - Major safety concern")
+            suggestions.append("💡 **Immediate action:** Increase capacity or reduce daily bookings by 20%")
+        elif over_pct > 10:
+            suggestions.append(f"⚠️ **Frequent over-capacity ({over_pct:.0f}% of days)** - Needs attention")
+            suggestions.append("💡 **Action:** Implement booking caps and consider expansion")
+    
+    # Critical days warning
+    if critical_days > total_days * 0.3:
+        suggestions.append(f"🔴 **Too many low-occupancy days** ({critical_days} days)")
+        suggestions.append("💡 **Strategy:** Reduce operating days or increase marketing on slow days")
+    
+    return insights, suggestions
+

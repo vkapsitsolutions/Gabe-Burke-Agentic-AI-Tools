@@ -1,0 +1,13 @@
+-In the Data Preview tab, in the Statistical Summary, it says there are 1,830 attendees and 1,830 capacity. Where did those totals come from? Total attendees and total capacity are different numbers?
+-> I have checked this i this was slightly mistake from data processing i fix this shortly.
+-> Done
+
+-Can you create a graph that has time on the X axis and a percentage of capacity used by attendees on the Y axis (percentage = attendees / capacity). The idea is to track the percentage of capacity that is used over time. Let me know if you need clarification.
+-> Sure we can create graph, but on X axis we take time line in monthly, weekly or daily in graph and on Y axis what i have to show like total attendees, capacity, occupied space, or empty space available 
+- For the graph, daily time intervals on the X axis would be ideal. The Y axis should be the occupied percentage (attendees divided by capacity)
+-> 
+
+
+-Can the graph be downloaded into Excel or another format?
+-> Yes i will do this  add a download button to each graph, i will download in .png format
+-> Done
