@@ -231,7 +231,7 @@ def generate_utilization_percentage_insights(utilization_series):
     if abs(daily_change) > 0.1:
         insights.append(f"📈 Daily Trend: {trend_direction.capitalize()} by {abs(daily_change):.2f}% per day")
         trend_strength = "Strong" if abs(r_value) > 0.7 else "Moderate" if abs(r_value) > 0.4 else "Weak"
-        insights.append(f"💪 Trend Strength: {trend_strength} (R²={r_value2:.2f})")
+        insights.append(f"💪 Trend Strength: {trend_strength} (R²={r_value**2:.2f})")
     else:
         insights.append(f"➡️ Daily Trend: Stable (±{abs(daily_change):.2f}% per day)")
     

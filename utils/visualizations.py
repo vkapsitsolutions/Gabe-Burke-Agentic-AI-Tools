@@ -154,8 +154,6 @@ def create_capacity_utilization_chart(df, date_column, attendees_col, capacity_c
     return fig, df_daily['Occupied_Percentage']
 
 
-
-
 def fig_to_download_link(fig, filename="chart.png"):
     """Convert matplotlib figure to downloadable bytes."""
     buf = io.BytesIO()
