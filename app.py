@@ -5,6 +5,7 @@ import pandas as pd
 import io
 import matplotlib.pyplot as plt
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
 
 # Import custom modules
 from config import (
@@ -473,34 +474,40 @@ if st.session_state.df is not None:
             st.markdown('</div>', unsafe_allow_html=True)
         
         # Chat input 
-        prompt = st.chat_input(CHAT_INPUT_PLACEHOLDER)
-        
-        if prompt:
+        if prompt := st.chat_input(CHAT_INPUT_PLACEHOLDER):
             # Add user message
             st.session_state.chat_messages.append({"role": "user", "content": prompt})
             
-            # Get response
-            with st.spinner():
-                try:
-                    messages = []
-                    for msg in st.session_state.chat_messages:
-                        if msg["role"] == "user":
-                            messages.append(HumanMessage(content=msg["content"]))
-                        else:
-                            messages.append(AIMessage(content=msg["content"]))
-                    
-                    response = st.session_state.agent.invoke({"messages": messages})
-                    answer = response["messages"][-1].content
-                    
-                    st.session_state.chat_messages.append({
-                        "role": "assistant",
-                        "content": answer
-                    })
-                    
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f" Error: {str(e)}")
+            # Display user message immediately
+            with chat_container:
+                with st.chat_message("user"):
+                    st.write(prompt)
+                
+                # Get response
+                with st.chat_message("assistant"):
+                    try:
+                        messages = []
+                        for msg in st.session_state.chat_messages:
+                            if msg["role"] == "user":
+                                messages.append(HumanMessage(content=msg["content"]))
+                            else:
+                                messages.append(AIMessage(content=msg["content"]))
+                        
+                        st_callback = StreamlitCallbackHandler(st.container())
+                        response = st.session_state.agent.invoke(
+                            {"messages": messages},
+                            {"callbacks": [st_callback]}
+                        )
+                        answer = response["messages"][-1].content
+                        st.write(answer)
+                        
+                        st.session_state.chat_messages.append({
+                            "role": "assistant",
+                            "content": answer
+                        })
+                        
+                    except Exception as e:
+                        st.error(f" Error: {str(e)}")
         
         # Controls
         col1, col2, col3 = st.columns([1, 1, 4])

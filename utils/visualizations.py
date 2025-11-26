@@ -37,7 +37,7 @@ def create_capacity_utilization_chart(df, date_column, attendees_col, capacity_c
     
     # Resample to daily frequency (forward fill for missing days)
     df_daily = df_sorted[['Occupied_Percentage', attendees_col, capacity_col]].resample('D').mean()
-    df_daily = df_daily.fillna(method='ffill')  # Forward fill missing days
+    df_daily = df_daily.ffill()  # Forward fill missing days
     
     # Reset index to get dates back as column
     df_daily = df_daily.reset_index()

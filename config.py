@@ -7,7 +7,7 @@ load_dotenv()
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-MODEL_NAME = "gpt-5"
+MODEL_NAME = "gpt-4o"
 
 # App Configuration
 APP_TITLE = "AI Data Analysis Agent"

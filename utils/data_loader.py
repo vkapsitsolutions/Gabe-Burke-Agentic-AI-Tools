@@ -11,6 +11,7 @@ from config import OPENAI_API_KEY
 # Initialize OpenAI client (using latest SDK v1.0+)
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+@st.cache_data
 def ai_analyze_file_structure(preview_data: list, max_rows: int = 10) -> Dict:
     """
     Use OpenAI to analyze file structure and identify:
