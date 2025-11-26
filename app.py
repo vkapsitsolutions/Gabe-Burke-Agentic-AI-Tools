@@ -450,78 +450,75 @@ if st.session_state.df is not None:
         st.subheader("Assistant")
         st.caption("Ask anything about your data!")
         
-        # Initialize agent
+        # Initialize cache
+        if 'response_cache' not in st.session_state:
+            st.session_state.response_cache = {}
+        
+        # Initialize agent once
         if st.session_state.agent is None:
-            with st.spinner("Initializing..."):
+            with st.spinner("Initializing AI assistant..."):
                 try:
                     st.session_state.agent = create_data_analysis_agent(
                         df, 
                         st.session_state.uploaded_file_name,
                         MODEL_NAME
                     )
-                    # st.success("✅ Ready!")
                 except Exception as e:
-                    st.error(f" Error: {str(e)}")
+                    st.error(f"Error: {str(e)}")
         
-        # Chat history container
-        chat_container = st.container()
+        # Display all previous chat messages
+        for msg in st.session_state.chat_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
         
-        with chat_container:
-            st.markdown('<div class="chat-history">', unsafe_allow_html=True)
-            for msg in st.session_state.chat_messages:
-                with st.chat_message(msg["role"]):
-                    st.write(msg["content"])
-            st.markdown('</div>', unsafe_allow_html=True)
         
-        # Chat input 
-        if prompt := st.chat_input(CHAT_INPUT_PLACEHOLDER):
+        
+        # Chat input - ONLY ONE, at the very end
+        user_input = st.chat_input(CHAT_INPUT_PLACEHOLDER)
+        
+        # Process input AFTER it's entered
+        if user_input:
             # Add user message
-            st.session_state.chat_messages.append({"role": "user", "content": prompt})
+            st.session_state.chat_messages.append({"role": "user", "content": user_input})
             
-            # Display user message immediately
-            with chat_container:
-                with st.chat_message("user"):
-                    st.write(prompt)
+            # Get response
+            cache_key = user_input.lower().strip()
+            
+            if cache_key in st.session_state.response_cache:
+                answer = st.session_state.response_cache[cache_key]
+            else:
+                # Build messages
+                messages = []
+                for msg in st.session_state.chat_messages:
+                    if msg["role"] == "user":
+                        messages.append(HumanMessage(content=msg["content"]))
+                    else:
+                        messages.append(AIMessage(content=msg["content"]))
                 
-                # Get response
-                with st.chat_message("assistant"):
-                    try:
-                        messages = []
-                        for msg in st.session_state.chat_messages:
-                            if msg["role"] == "user":
-                                messages.append(HumanMessage(content=msg["content"]))
-                            else:
-                                messages.append(AIMessage(content=msg["content"]))
-                        
-                        st_callback = StreamlitCallbackHandler(st.container())
-                        response = st.session_state.agent.invoke(
-                            {"messages": messages},
-                            {"callbacks": [st_callback]}
-                        )
-                        answer = response["messages"][-1].content
-                        st.write(answer)
-                        
-                        st.session_state.chat_messages.append({
-                            "role": "assistant",
-                            "content": answer
-                        })
-                        
-                    except Exception as e:
-                        st.error(f" Error: {str(e)}")
-        
-        # Controls
-        col1, col2, col3 = st.columns([1, 1, 4])
-        with col1:
-            if st.button("Clear Chat"):
-                st.session_state.chat_messages = []
-                st.rerun()
-        with col2:
-            if st.session_state.chat_messages:
-                chat_text = "\n\n".join([
-                    f"{m['role'].upper()}: {m['content']}" 
-                    for m in st.session_state.chat_messages
-                ])
-                st.download_button("Export Chat", chat_text, "chat.txt")
+                # Get AI response (spinner outside chat message)
+                with st.spinner("🤖 Analyzing..."):
+                    response = st.session_state.agent.invoke({"messages": messages})
+                    answer = response["messages"][-1].content
+                
+                st.session_state.response_cache[cache_key] = answer
+            
+            # Save assistant response
+            st.session_state.chat_messages.append({
+                "role": "assistant",
+                "content": answer
+            })
+
+            # # Controls at bottom (BEFORE chat input)
+            # col1, col2 = st.columns([1, 5])
+            # with col1:
+            #     if st.button("🗑️ Clear", use_container_width=True):
+            #         st.session_state.chat_messages = []
+            #         st.session_state.response_cache = {}
+            #         st.rerun()
+            
+            # Rerun to display new messages
+            st.rerun()
+
 
 else:
     st.info("<- Upload a file to begin")
